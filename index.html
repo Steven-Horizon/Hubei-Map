@@ -212,11 +212,14 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text
 .game-progress{display:flex;gap:5px;justify-content:center;margin-bottom:1rem}
 .progress-dot{width:8px;height:8px;border-radius:50%;background:#e0d5c5;transition:all .3s}
 .progress-dot.done{background:#27ae60}.progress-dot.current{background:var(--gold);transform:scale(1.3)}.progress-dot.fail{background:#e74c3c}
-.sort-items{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1rem}
-.sort-item{padding:.8rem 1rem;background:#fff;border:2px solid #e8e0d4;border-radius:10px;font-size:.85rem;line-height:1.5;display:flex;align-items:center;gap:.8rem}
-.sort-num{width:24px;height:24px;background:var(--light-gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--dark-red);flex-shrink:0}
-.sort-arrows{display:flex;gap:.4rem;margin-left:auto;flex-shrink:0}
-.sort-arrows button{width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.game-rules{background:#fdf8ee;border:1px dashed #e3cf9a;border-radius:10px;padding:.7rem .85rem;font-size:.74rem;line-height:1.75;color:#7a6a4f;margin-bottom:.8rem}
+.game-rules b{color:var(--dark-red)}
+.match-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:1rem}
+.match-card{min-height:80px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.7rem;text-align:center;padding:.45rem;transition:all .25s;line-height:1.35;border:2px solid transparent;word-break:break-word}
+.match-card.face-down{background:linear-gradient(135deg,var(--red),var(--dark-red));color:transparent}
+.match-card.face-down::after{content:'★';color:var(--gold);font-size:1.15rem}
+.match-card.face-up{background:#fff;border-color:var(--gold);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.match-card.matched{background:#e8f8f0;border-color:#27ae60;color:#27ae60;cursor:default}
 .guess-quote{background:var(--light-gold);border-left:4px solid var(--gold);border-radius:10px;padding:1.1rem 1.2rem;margin-bottom:.5rem;font-size:.92rem;line-height:1.9;text-align:center;color:var(--dark-red);font-weight:600}
 .guess-hint{text-align:center;color:#999;font-size:.76rem;margin-bottom:1rem}
 .loc-options{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
@@ -465,7 +468,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text
     <div class="section-title"><h2>互动游戏</h2><p>寓教于乐，在游戏中学习重要语录</p></div>
     <div class="games-grid">
       <div class="game-card" onclick="startGame('fill')"><div class="game-card-img g1">📝</div><div class="game-card-body"><h3>语录填空</h3><p>选择正确的词语填入语录空白处</p><button class="play-btn">开始挑战</button></div></div>
-      <div class="game-card" onclick="startGame('sort')"><div class="game-card-img g2">🧩</div><div class="game-card-body"><h3>语录排序</h3><p>将打乱的语录片段按正确顺序排列</p><button class="play-btn">开始挑战</button></div></div>
+      <div class="game-card" onclick="startGame('match')"><div class="game-card-img g2">🎴</div><div class="game-card-body"><h3>语录配对</h3><p>翻开卡片，把语录的上句和下句配成一对</p><button class="play-btn">开始挑战</button></div></div>
       <div class="game-card" onclick="startGame('guess')"><div class="game-card-img g3">📍</div><div class="game-card-body"><h3>出处猜猜看</h3><p>看一句语录，猜它在湖北哪里讲的</p><button class="play-btn">开始挑战</button></div></div>
     </div>
   </div>
@@ -941,7 +944,7 @@ function renderQuotes(cat) {
 }
 
 // ==================== GAMES ====================
-function startGame(type) { document.getElementById('gameModal').classList.add('show'); if(type==='fill')initFillGame();else if(type==='sort')initSortGame();else if(type==='guess')initGuessGame(); }
+function startGame(type) { document.getElementById('gameModal').classList.add('show'); if(type==='fill')initFillGame();else if(type==='match')initMatchGame();else if(type==='guess')initGuessGame(); }
 function closeGame() { document.getElementById('gameModal').classList.remove('show'); }
 
 let fillState={};
@@ -951,11 +954,48 @@ function renderFQ(){const{questions:qs,current:c,score:s,results:r}=fillState;if
 const q=qs[c];document.getElementById('gameContent').innerHTML=`<div class="game-title">📝 语录填空</div><div class="game-desc">选择正确的词语</div><div class="game-score">得分：${s} / ${qs.length}</div><div class="game-progress">${qs.map((_,i)=>{let cl='progress-dot';if(i<c)cl+=r[i]?' done':' fail';else if(i===c)cl+=' current';return`<div class="${cl}"></div>`}).join('')}</div><div class="fill-question">${q.text.replace('______','<span class="fill-blank">&nbsp;&nbsp;&nbsp;&nbsp;</span>')}</div><div class="fill-options">${q.options.map((o,i)=>`<button class="fill-opt" onclick="checkF(${i},'${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>`}
 function checkF(i,sel){const q=fillState.questions[fillState.current];const bs=document.querySelectorAll('.fill-opt');bs.forEach(b=>b.disabled=true);const ok=sel===q.answer;if(ok){fillState.score++;bs[i].classList.add('correct')}else{bs[i].classList.add('wrong');bs.forEach(b=>{if(b.textContent===q.answer)b.classList.add('correct')})}fillState.results.push(ok);const bl=document.querySelector('.fill-blank');if(bl){bl.textContent=q.answer;bl.style.color=ok?'#27ae60':'#e74c3c'}setTimeout(()=>{fillState.current++;renderFQ()},1000)}
 
-let sortState={};
-function initSortGame(){const q=allQuotes[Math.floor(Math.random()*allQuotes.length)];let s=q.text.match(/[^。！？；]+[。！？；]/g)||[q.text];s=s.map(x=>x.trim()).filter(x=>x.length>4);if(s.length<3){initSortGame();return}const c=[...s];const sh=[...s].sort(()=>Math.random()-.5);if(sh.join('')===c.join(''))sh.reverse();sortState={correct:c,current:sh,source:q.short,answered:false};renderSort()}
-function renderSort(){const{current:c,source:src,answered:a}=sortState;document.getElementById('gameContent').innerHTML=`<div class="game-title">🧩 语录排序</div><div class="game-desc">按正确顺序排列<br><small style="color:var(--gold)">提示：${src}</small></div><div class="sort-items">${c.map((s,i)=>`<div class="sort-item"><span class="sort-num">${i+1}</span><span>${s}</span><div class="sort-arrows">${i>0?`<button onclick="moveS(${i},-1)">↑</button>`:''}${i<c.length-1?`<button onclick="moveS(${i},1)">↓</button>`:''}</div></div>`).join('')}</div>${!a?`<button class="restart-btn" onclick="checkS()" style="width:100%">确认排序</button>`:''}`}
-function moveS(i,d){const n=i+d;if(n<0||n>=sortState.current.length)return;[sortState.current[i],sortState.current[n]]=[sortState.current[n],sortState.current[i]];renderSort()}
-function checkS(){sortState.answered=true;document.querySelectorAll('.sort-item').forEach((el,i)=>{el.style.borderColor=sortState.current[i]===sortState.correct[i]?'#27ae60':'#e74c3c';el.style.background=sortState.current[i]===sortState.correct[i]?'#e8f8f0':'#fde8e8'});const ok=sortState.current.every((s,i)=>s===sortState.correct[i]);const d=document.createElement('div');d.style.cssText='margin-top:1rem;text-align:center';d.innerHTML=ok?`<p style="color:#27ae60;font-weight:700;margin-bottom:.8rem">✅ 完全正确！</p><button class="restart-btn" onclick="initSortGame()">再来一题</button>`:`<p style="color:#e74c3c;font-weight:700;margin-bottom:.8rem">❌ 顺序不对</p><button class="restart-btn" onclick="sortState.answered=false;renderSort()">重新排列</button>`;document.getElementById('gameContent').appendChild(d)}
+let matchState={};
+function initMatchGame(){
+  const pairs=[];
+  const sh=[...allQuotes].sort(()=>Math.random()-.5);
+  for(const q of sh){
+    if(pairs.length>=6)break;
+    const s=(q.text.match(/[^。！？；]+[。！？；]/g)||[q.text]).map(x=>x.trim()).filter(x=>x.length>=6);
+    if(s.length>=2)pairs.push({id:q.id,a:s[0],b:s[1],loc:q.location});
+  }
+  if(pairs.length<4){initMatchGame();return}
+  const cards=[];
+  pairs.forEach(p=>{cards.push({pairId:p.id,text:p.a,side:'a'});cards.push({pairId:p.id,text:p.b,side:'b'})});
+  cards.sort(()=>Math.random()-.5);
+  matchState={cards,flipped:[],matched:new Set(),moves:0,total:pairs.length,lock:false};
+  renderMatch();
+}
+function renderMatch(){
+  const{cards,flipped,matched,moves,total}=matchState;
+  const mc=matched.size;
+  if(mc===total){
+    document.getElementById('gameContent').innerHTML=`<div class="result-screen"><div class="emoji">🎊</div><div class="score-big">${moves} 步</div><h3>全部配对成功！</h3><p>${total} 组语录全部配对完成</p><button class="restart-btn" onclick="initMatchGame()">再来一次</button></div>`;
+    return;
+  }
+  document.getElementById('gameContent').innerHTML=`<div class="game-title">🎴 语录配对</div>
+<div class="game-rules"><b>玩法：</b>点击卡片翻开，同一句语录的<b>上句</b>与<b>下句</b>配成一对即变绿锁定；配错时两张牌会在 0.9 秒后自动翻回。共 ${total} 组，全部配完通关，步数越少越好。</div>
+<div class="game-score">已配对 ${mc}/${total} · 步数 ${moves}</div>
+<div class="match-grid">${cards.map((c,i)=>{const isF=flipped.includes(i),isM=matched.has(c.pairId);let cl='match-card';if(isM)cl+=' matched';else if(isF)cl+=' face-up';else cl+=' face-down';return`<div class="${cl}" onclick="flipC(${i})">${isF||isM?c.text:''}</div>`}).join('')}</div>`;
+}
+function flipC(i){
+  const st=matchState;
+  if(st.lock||st.flipped.includes(i)||st.matched.has(st.cards[i].pairId))return;
+  st.flipped.push(i);
+  if(st.flipped.length<2){renderMatch();return}
+  st.moves++;st.lock=true;
+  const[a,b]=st.flipped;
+  const ok=st.cards[a].pairId===st.cards[b].pairId&&st.cards[a].side!==st.cards[b].side;
+  renderMatch();
+  setTimeout(()=>{
+    if(ok)st.matched.add(st.cards[a].pairId);
+    st.flipped=[];st.lock=false;renderMatch();
+  },ok?600:900);
+}
 
 let guessState={};
 function initGuessGame(){
