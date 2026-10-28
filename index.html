@@ -220,6 +220,8 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text
 .match-card.face-down::after{content:'★';color:var(--gold);font-size:1.15rem}
 .match-card.face-up{background:#fff;border-color:var(--gold);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .match-card.matched{background:#e8f8f0;border-color:#27ae60;color:#27ae60;cursor:default}
+.game-preview{background:linear-gradient(90deg,#fdf3d8,#fbe9c0);border:1px solid #e3cf9a;border-radius:8px;padding:.5rem;text-align:center;font-size:.76rem;color:#8a6d2f;font-weight:700;margin-bottom:.6rem}
+.game-tip{text-align:center;font-size:.75rem;color:#999;margin-bottom:.6rem}
 .guess-quote{background:var(--light-gold);border-left:4px solid var(--gold);border-radius:10px;padding:1.1rem 1.2rem;margin-bottom:.5rem;font-size:.92rem;line-height:1.9;text-align:center;color:var(--dark-red);font-weight:600}
 .guess-hint{text-align:center;color:#999;font-size:.76rem;margin-bottom:1rem}
 .loc-options{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
@@ -945,7 +947,7 @@ function renderQuotes(cat) {
 
 // ==================== GAMES ====================
 function startGame(type) { document.getElementById('gameModal').classList.add('show'); if(type==='fill')initFillGame();else if(type==='match')initMatchGame();else if(type==='guess')initGuessGame(); }
-function closeGame() { document.getElementById('gameModal').classList.remove('show'); }
+function closeGame() { if(matchTick){clearInterval(matchTick);matchTick=null} if(matchState.preview)matchState.preview=false; document.getElementById('gameModal').classList.remove('show'); }
 
 let fillState={};
 function initFillGame(){fillState={questions:genFQ(),current:0,score:0,results:[]};renderFQ()}
@@ -955,6 +957,7 @@ const q=qs[c];document.getElementById('gameContent').innerHTML=`<div class="game
 function checkF(i,sel){const q=fillState.questions[fillState.current];const bs=document.querySelectorAll('.fill-opt');bs.forEach(b=>b.disabled=true);const ok=sel===q.answer;if(ok){fillState.score++;bs[i].classList.add('correct')}else{bs[i].classList.add('wrong');bs.forEach(b=>{if(b.textContent===q.answer)b.classList.add('correct')})}fillState.results.push(ok);const bl=document.querySelector('.fill-blank');if(bl){bl.textContent=q.answer;bl.style.color=ok?'#27ae60':'#e74c3c'}setTimeout(()=>{fillState.current++;renderFQ()},1000)}
 
 let matchState={};
+let matchTick=null;
 function initMatchGame(){
   const pairs=[];
   const sh=[...allQuotes].sort(()=>Math.random()-.5);
@@ -967,24 +970,35 @@ function initMatchGame(){
   const cards=[];
   pairs.forEach(p=>{cards.push({pairId:p.id,text:p.a,side:'a'});cards.push({pairId:p.id,text:p.b,side:'b'})});
   cards.sort(()=>Math.random()-.5);
-  matchState={cards,flipped:[],matched:new Set(),moves:0,total:pairs.length,lock:false};
+  matchState={cards,flipped:[],matched:new Set(),moves:0,total:pairs.length,lock:false,preview:true,left:3};
   renderMatch();
+  if(matchTick)clearInterval(matchTick);
+  const tick=setInterval(()=>{
+    if(!matchState.preview){clearInterval(tick);return}
+    matchState.left--;
+    if(matchState.left<=0){matchState.preview=false;clearInterval(tick)}
+    renderMatch();
+  },1000);
+  matchTick=tick;
 }
 function renderMatch(){
-  const{cards,flipped,matched,moves,total}=matchState;
+  const{cards,flipped,matched,moves,total,preview,left}=matchState;
   const mc=matched.size;
   if(mc===total){
     document.getElementById('gameContent').innerHTML=`<div class="result-screen"><div class="emoji">🎊</div><div class="score-big">${moves} 步</div><h3>全部配对成功！</h3><p>${total} 组语录全部配对完成</p><button class="restart-btn" onclick="initMatchGame()">再来一次</button></div>`;
     return;
   }
+  const tip=flipped.length===1?'已翻开 1 张，再点一张，找同一句语录的另一半':'每次点两张牌：同一句语录的上半句 + 下半句 = 一对';
   document.getElementById('gameContent').innerHTML=`<div class="game-title">🎴 语录配对</div>
-<div class="game-rules"><b>玩法：</b>点击卡片翻开，同一句语录的<b>上句</b>与<b>下句</b>配成一对即变绿锁定；配错时两张牌会在 0.9 秒后自动翻回。共 ${total} 组，全部配完通关，步数越少越好。</div>
+<div class="game-rules"><b>玩法：</b>12 张牌里藏着 ${total} 组语录，每组是同一句的<b>上半句</b>和<b>下半句</b>。每次翻开两张：配成一对就变绿留下，配不上会在 0.9 秒后自动翻回。全部配完通关，步数越少越好。</div>
+${preview?`<div class="game-preview">开局预览 ${left} 秒：先记住每张牌的位置，随后自动翻回</div>`:''}
 <div class="game-score">已配对 ${mc}/${total} · 步数 ${moves}</div>
-<div class="match-grid">${cards.map((c,i)=>{const isF=flipped.includes(i),isM=matched.has(c.pairId);let cl='match-card';if(isM)cl+=' matched';else if(isF)cl+=' face-up';else cl+=' face-down';return`<div class="${cl}" onclick="flipC(${i})">${isF||isM?c.text:''}</div>`}).join('')}</div>`;
+<div class="game-tip">${tip}</div>
+<div class="match-grid">${cards.map((c,i)=>{const isF=flipped.includes(i),isM=matched.has(c.pairId);let cl='match-card';if(isM)cl+=' matched';else if(isF||preview)cl+=' face-up';else cl+=' face-down';return`<div class="${cl}" onclick="flipC(${i})">${isF||isM||preview?c.text:''}</div>`}).join('')}</div>`;
 }
 function flipC(i){
   const st=matchState;
-  if(st.lock||st.flipped.includes(i)||st.matched.has(st.cards[i].pairId))return;
+  if(st.preview||st.lock||st.flipped.includes(i)||st.matched.has(st.cards[i].pairId))return;
   st.flipped.push(i);
   if(st.flipped.length<2){renderMatch();return}
   st.moves++;st.lock=true;
