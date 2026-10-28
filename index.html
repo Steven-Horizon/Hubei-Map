@@ -217,12 +217,14 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text
 .sort-num{width:24px;height:24px;background:var(--light-gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--dark-red);flex-shrink:0}
 .sort-arrows{display:flex;gap:.4rem;margin-left:auto;flex-shrink:0}
 .sort-arrows button{width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
-.match-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem}
-.match-card{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.72rem;text-align:center;padding:.4rem;transition:all .3s;line-height:1.3;border:2px solid transparent}
-.match-card.face-down{background:linear-gradient(135deg,var(--red),var(--dark-red));color:transparent}
-.match-card.face-down::after{content:'★';color:var(--gold);font-size:1.2rem}
-.match-card.face-up{background:#fff;border-color:var(--gold);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.match-card.matched{background:#e8f8f0;border-color:#27ae60;color:#27ae60;cursor:default}
+.guess-quote{background:var(--light-gold);border-left:4px solid var(--gold);border-radius:10px;padding:1.1rem 1.2rem;margin-bottom:.5rem;font-size:.92rem;line-height:1.9;text-align:center;color:var(--dark-red);font-weight:600}
+.guess-hint{text-align:center;color:#999;font-size:.76rem;margin-bottom:1rem}
+.loc-options{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.loc-opt{padding:.9rem .6rem;border:2px solid #e8e0d4;border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-size:.86rem;transition:all .2s}
+.loc-opt:active{transform:scale(.96)}
+.loc-opt:disabled{cursor:default}
+.loc-opt.correct{border-color:#27ae60;background:#e8f8f0;color:#27ae60}
+.loc-opt.wrong{border-color:#e74c3c;background:#fdecea;color:#e74c3c}
 .result-screen{text-align:center;padding:1.5rem 0}
 .result-screen .emoji{font-size:3rem;margin-bottom:.8rem}
 .result-screen h3{font-size:1.2rem;color:var(--red);margin-bottom:.4rem}
@@ -464,7 +466,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text
     <div class="games-grid">
       <div class="game-card" onclick="startGame('fill')"><div class="game-card-img g1">📝</div><div class="game-card-body"><h3>语录填空</h3><p>选择正确的词语填入语录空白处</p><button class="play-btn">开始挑战</button></div></div>
       <div class="game-card" onclick="startGame('sort')"><div class="game-card-img g2">🧩</div><div class="game-card-body"><h3>语录排序</h3><p>将打乱的语录片段按正确顺序排列</p><button class="play-btn">开始挑战</button></div></div>
-      <div class="game-card" onclick="startGame('match')"><div class="game-card-img g3">🃏</div><div class="game-card-body"><h3>语录配对</h3><p>翻开卡片找到语录上下句配对</p><button class="play-btn">开始挑战</button></div></div>
+      <div class="game-card" onclick="startGame('guess')"><div class="game-card-img g3">📍</div><div class="game-card-body"><h3>出处猜猜看</h3><p>看一句语录，猜它在湖北哪里讲的</p><button class="play-btn">开始挑战</button></div></div>
     </div>
   </div>
 </div>
@@ -939,7 +941,7 @@ function renderQuotes(cat) {
 }
 
 // ==================== GAMES ====================
-function startGame(type) { document.getElementById('gameModal').classList.add('show'); if(type==='fill')initFillGame();else if(type==='sort')initSortGame();else initMatchGame(); }
+function startGame(type) { document.getElementById('gameModal').classList.add('show'); if(type==='fill')initFillGame();else if(type==='sort')initSortGame();else if(type==='guess')initGuessGame(); }
 function closeGame() { document.getElementById('gameModal').classList.remove('show'); }
 
 let fillState={};
@@ -955,11 +957,38 @@ function renderSort(){const{current:c,source:src,answered:a}=sortState;document.
 function moveS(i,d){const n=i+d;if(n<0||n>=sortState.current.length)return;[sortState.current[i],sortState.current[n]]=[sortState.current[n],sortState.current[i]];renderSort()}
 function checkS(){sortState.answered=true;document.querySelectorAll('.sort-item').forEach((el,i)=>{el.style.borderColor=sortState.current[i]===sortState.correct[i]?'#27ae60':'#e74c3c';el.style.background=sortState.current[i]===sortState.correct[i]?'#e8f8f0':'#fde8e8'});const ok=sortState.current.every((s,i)=>s===sortState.correct[i]);const d=document.createElement('div');d.style.cssText='margin-top:1rem;text-align:center';d.innerHTML=ok?`<p style="color:#27ae60;font-weight:700;margin-bottom:.8rem">✅ 完全正确！</p><button class="restart-btn" onclick="initSortGame()">再来一题</button>`:`<p style="color:#e74c3c;font-weight:700;margin-bottom:.8rem">❌ 顺序不对</p><button class="restart-btn" onclick="sortState.answered=false;renderSort()">重新排列</button>`;document.getElementById('gameContent').appendChild(d)}
 
-let matchState={};
-function initMatchGame(){const pairs=[];const sh=[...allQuotes].sort(()=>Math.random()-.5);for(const q of sh){if(pairs.length>=6)break;const s=q.text.match(/[^。！？；]+[。！？；]/g)||[q.text];if(s.length>=2)pairs.push({id:q.id+1000,a:s[0].trim(),b:s[1].trim()})}if(pairs.length<4){initMatchGame();return}const cards=[];pairs.forEach(p=>{cards.push({pairId:p.id,text:p.a,side:'a'});cards.push({pairId:p.id,text:p.b,side:'b'})});cards.sort(()=>Math.random()-.5);matchState={cards,flipped:[],matched:new Set(),moves:0,total:pairs.length};renderMatch()}
-function renderMatch(){const{cards,flipped,matched,moves,total}=matchState;const mc=matched.size/2;if(mc===total){document.getElementById('gameContent').innerHTML=`<div class="result-screen"><div class="emoji">🎊</div><div class="score-big">${moves} 步</div><h3>全部配对成功！</h3><button class="restart-btn" onclick="initMatchGame()">再来一次</button></div>`;return}
-document.getElementById('gameContent').innerHTML=`<div class="game-title">🃏 语录配对</div><div class="game-score">已配对：${mc}/${total} 步数：${moves}</div><div class="match-grid">${cards.map((c,i)=>{const isF=flipped.includes(i),isM=matched.has(c.pairId);let cl='match-card';if(isM)cl+=' matched';else if(isF)cl+=' face-up';else cl+=' face-down';return`<div class="${cl}" onclick="flipC(${i})" style="font-size:${c.text.length>20?'.65rem':'.75rem'}">${isF||isM?c.text:''}</div>`}).join('')}</div>`}
-function flipC(i){const{cards,flipped,matched}=matchState;if(flipped.length>=2||flipped.includes(i)||matched.has(cards[i].pairId))return;flipped.push(i);renderMatch();if(flipped.length===2){matchState.moves++;const[a,b]=flipped;if(cards[a].pairId===cards[b].pairId&&cards[a].side!==cards[b].side){matched.add(cards[a].pairId);matchState.flipped=[];setTimeout(()=>renderMatch(),500)}else{setTimeout(()=>{matchState.flipped=[];renderMatch()},800)}}}
+let guessState={};
+function initGuessGame(){
+  const pool=allQuotes.filter(q=>q.text&&q.text.length>=6);
+  const sh=[...pool].sort(()=>Math.random()-.5);
+  const allLocs=[...new Set(allQuotes.map(q=>q.location))];
+  const qs=[];const used=new Set();
+  for(const q of sh){
+    if(qs.length>=6)break;
+    if(used.has(q.text))continue;
+    const wr=allLocs.filter(l=>l!==q.location).sort(()=>Math.random()-.5).slice(0,3);
+    if(wr.length<3)continue;
+    used.add(q.text);
+    qs.push({text:q.text,answer:q.location,date:q.date,options:[q.location,...wr].sort(()=>Math.random()-.5)});
+  }
+  guessState={questions:qs,current:0,score:0,results:[]};renderGuess();
+}
+function renderGuess(){
+  const{questions:qs,current:c,score:s,results:r}=guessState;
+  if(c>=qs.length){const p=Math.round(s/qs.length*100);const e=p>=80?'🎉':p>=50?'💪':'📚';
+    document.getElementById('gameContent').innerHTML=`<div class="result-screen"><div class="emoji">${e}</div><div class="score-big">${s} / ${qs.length}</div><h3>${p>=80?'足迹全对！':p>=50?'还不错！':'再走一遍吧'}</h3><p>正确率 ${p}%</p><button class="restart-btn" onclick="initGuessGame()">再来一次</button></div>`;return}
+  const q=qs[c];
+  document.getElementById('gameContent').innerHTML=`<div class="game-title">📍 出处猜猜看</div><div class="game-desc">这句语录是在湖北哪里讲的？</div><div class="game-score">得分：${s} / ${qs.length}</div><div class="game-progress">${qs.map((_,i)=>{let cl='progress-dot';if(i<c)cl+=r[i]?' done':' fail';else if(i===c)cl+=' current';return`<div class="${cl}"></div>`}).join('')}</div><div class="guess-quote">“${q.text}”</div><div class="guess-hint">${q.date}</div><div class="loc-options">${q.options.map((o,i)=>`<button class="loc-opt" onclick="checkG(${i})">${o}</button>`).join('')}</div>`;
+}
+function checkG(i){
+  const q=guessState.questions[guessState.current];
+  const bs=document.querySelectorAll('.loc-opt');bs.forEach(b=>b.disabled=true);
+  const ok=q.options[i]===q.answer;
+  if(ok){guessState.score++;bs[i].classList.add('correct')}
+  else{bs[i].classList.add('wrong');bs.forEach((b,j)=>{if(q.options[j]===q.answer)b.classList.add('correct')})}
+  guessState.results.push(ok);
+  setTimeout(()=>{guessState.current++;renderGuess()},1200);
+}
 
 // ==================== INIT ====================
 renderCatTabs();
